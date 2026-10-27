@@ -76,14 +76,14 @@ var
   lObj: TJSONObject;
   lLpiExists: Boolean;
 begin
-  if FindFirst(ADir + '/*', faAnyFile, lSR) = 0 then
+  if FindFirst(ADir + PathDelim + '*', faAnyFile, lSR) = 0 then
   begin
     try
       repeat
         if (lSR.Name = '.') or (lSR.Name = '..') then
           Continue;
 
-        lPath := ADir + '/' + lSR.Name;
+        lPath := ADir + PathDelim + lSR.Name;
 
         if (lSR.Attr and faDirectory) <> 0 then
         begin
@@ -114,7 +114,7 @@ begin
               // Check if corresponding .lpr exists
               if lExt = '.lpi' then
               begin
-                if FileExists(ADir + '/' + lBaseName + '.lpr') then
+                if FileExists(ADir + PathDelim + lBaseName + '.lpr') then
                   lObj.Add('main_source', lBaseName + '.lpr');
               end;
 

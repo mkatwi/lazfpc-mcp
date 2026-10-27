@@ -8,13 +8,30 @@ uses
   Classes, SysUtils;
 
 const
-  DefaultWorkspaceRoot = '/Users/worajedt/Lazarus';
+  // Environment variables that override the default tool locations.
+  LazBuildEnvVar = 'LAZFPC_LAZBUILD';
+  FPCEnvVar = 'LAZFPC_FPC';
+  FPCSourceEnvVar = 'LAZFPC_FPC_SOURCE';
 
-function GetWorkspaceRoot: string;
+{$IFDEF MSWINDOWS}
+  // A standard Lazarus install on Windows bundles FPC and its sources.
+  DefaultLazBuildPath = 'C:\lazarus\lazbuild.exe';
+  DefaultFPCPath = 'C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe';
+  DefaultFPCSourceDir = 'C:\lazarus\fpc\3.2.2\source';
+{$ELSE}
+  DefaultWorkspaceRoot = '/Users/worajedt/Lazarus';
+  DefaultLazBuildPath = DefaultWorkspaceRoot + '/lazarus/lazbuild';
+  DefaultFPCPath = DefaultWorkspaceRoot + '/fpc/bin/fpc';
+  DefaultFPCSourceDir = DefaultWorkspaceRoot + '/fpc-src';
+{$ENDIF}
+
+function ChooseSetting(const aOverride, aDefault: string): string;
+function PrependToSearchPath(const aDir, aSearchPath: string): string;
 function GetFPCPath: string;
 function GetFPCVersion: string;
 function GetLazBuildPath: string;
 function GetFPCBinDir: string;
+function GetFPCSourceDir: string;
 function BuildFPCPath: string;
 function GetEnvironmentPath: string;
 
@@ -23,24 +40,41 @@ implementation
 uses
   Process;
 
-function GetWorkspaceRoot: string;
+function ChooseSetting(const aOverride, aDefault: string): string;
 begin
-  Result := DefaultWorkspaceRoot;
+  Result := Trim(aOverride);
+  if Result = '' then
+    Result := aDefault;
+end;
+
+function PrependToSearchPath(const aDir, aSearchPath: string): string;
+begin
+  if aDir = '' then
+    Result := aSearchPath
+  else if aSearchPath = '' then
+    Result := aDir
+  else
+    Result := aDir + PathSeparator + aSearchPath;
 end;
 
 function GetFPCBinDir: string;
 begin
-  Result := GetWorkspaceRoot + '/fpc/bin';
+  Result := ExtractFileDir(GetFPCPath);
 end;
 
 function GetFPCPath: string;
 begin
-  Result := GetFPCBinDir + '/fpc';
+  Result := ChooseSetting(GetEnvironmentVariable(FPCEnvVar), DefaultFPCPath);
 end;
 
 function GetLazBuildPath: string;
 begin
-  Result := GetWorkspaceRoot + '/lazarus/lazbuild';
+  Result := ChooseSetting(GetEnvironmentVariable(LazBuildEnvVar), DefaultLazBuildPath);
+end;
+
+function GetFPCSourceDir: string;
+begin
+  Result := ChooseSetting(GetEnvironmentVariable(FPCSourceEnvVar), DefaultFPCSourceDir);
 end;
 
 function GetFPCVersion: string;
@@ -88,14 +122,21 @@ begin
   end;
 end;
 
+// The unit directory of an FPC install with the Unix layout (lib/fpc/<version>).
+// The Windows install keeps its units next to the compiler, so this is empty there.
 function BuildFPCPath: string;
 begin
-  Result := GetWorkspaceRoot + '/fpc/lib/fpc/' + GetFPCVersion;
+{$IFDEF MSWINDOWS}
+  Result := '';
+{$ELSE}
+  Result := ExtractFileDir(GetFPCBinDir) + '/lib/fpc/' + GetFPCVersion;
+{$ENDIF}
 end;
 
 function GetEnvironmentPath: string;
 begin
-  Result := GetFPCBinDir + ':' + BuildFPCPath + ':' + GetEnvironmentVariable('PATH');
+  Result := PrependToSearchPath(BuildFPCPath, GetEnvironmentVariable('PATH'));
+  Result := PrependToSearchPath(GetFPCBinDir, Result);
 end;
 
 end.

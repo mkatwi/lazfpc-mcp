@@ -83,6 +83,10 @@ begin
   lBaseName := ChangeFileExt(lProjectPath, '');
   lExePath := lBaseName;
 
+  // Windows executables carry an .exe extension
+  if not FileExists(lExePath) and FileExists(lBaseName + '.exe') then
+    lExePath := lBaseName + '.exe';
+
   // Check for .app bundle on macOS
   if not FileExists(lExePath) then
   begin

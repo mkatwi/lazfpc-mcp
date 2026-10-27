@@ -28,6 +28,7 @@ program lazfpc_mcp;
 {$mode objfpc}{$H+}
 
 uses
+  jsonparser, // installs the fpjson parser; without it no request can be read
   mcp.application.stdio,
   mcp.tools,
   mcp.resources,

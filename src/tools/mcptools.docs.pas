@@ -17,11 +17,12 @@ type
 implementation
 
 uses
-  StrUtils;
+  StrUtils, mcputils.pathconfig;
 
 const
-  FPCSrcRoot = '/Users/worajedt/Lazarus/fpc-src';
   MaxFilesToScan = 500;
+  // FPC 3.x keeps the FCL under packages; fcl only exists in older layouts.
+  SourceSubDirs: array[0..2] of string = ('rtl', 'fcl', 'packages');
 
 function DetectMatchType(const ALine, AQuery: string): string;
 var
@@ -77,7 +78,7 @@ begin
         lMatchType := DetectMatchType(lLine, AQuery);
 
         lObj := TJSONObject.Create;
-        lObj.Add('file', StringReplace(AFilePath, FPCSrcRoot + '/', '', []));
+        lObj.Add('file', StringReplace(AFilePath, IncludeTrailingPathDelimiter(GetFPCSourceDir), '', []));
         lObj.Add('line', I + 1);
         lObj.Add('context', lTrimmed);
         lObj.Add('match_type', lMatchType);
@@ -102,14 +103,14 @@ begin
   if AStop then
     Exit;
 
-  if FindFirst(ADir + '/*', faAnyFile, lSR) = 0 then
+  if FindFirst(ADir + PathDelim + '*', faAnyFile, lSR) = 0 then
   begin
     try
       repeat
         if (lSR.Name = '.') or (lSR.Name = '..') then
           Continue;
 
-        lPath := ADir + '/' + lSR.Name;
+        lPath := ADir + PathDelim + lSR.Name;
 
         if (lSR.Attr and faDirectory) <> 0 then
         begin
@@ -176,9 +177,8 @@ begin
   lFilesScanned := 0;
   lStop := False;
 
-  lDirs[0] := FPCSrcRoot + '/rtl';
-  lDirs[1] := FPCSrcRoot + '/fcl';
-  lDirs[2] := FPCSrcRoot + '/packages';
+  for I := 0 to 2 do
+    lDirs[I] := IncludeTrailingPathDelimiter(GetFPCSourceDir) + SourceSubDirs[I];
 
   for I := 0 to 2 do
   begin

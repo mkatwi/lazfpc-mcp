@@ -11,12 +11,33 @@ function RunLazBuild(const ALazBuildPath, AFPCPath, AFPCBinDir: string;
   const AProjectPath, ATargetOS, ATargetCPU: string;
   out AOutput, AStdErr: string): Boolean;
 
+// Fills ATarget with this process's environment, PATH replaced by APath.
+procedure CopyEnvironmentWithPath(ATarget: TStrings; const APath: string);
+
 implementation
 
 uses
-  Process;
+  Process, mcputils.pathconfig;
 
-function setenv(name, value: PChar; overwrite: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+const
+  PathVariable = 'PATH';
+
+procedure CopyEnvironmentWithPath(ATarget: TStrings; const APath: string);
+var
+  I: Integer;
+  lEntry: string;
+begin
+  ATarget.Clear;
+  for I := 1 to GetEnvironmentVariableCount do
+  begin
+    lEntry := GetEnvironmentString(I);
+    // Windows spells it "Path"; drop every spelling before adding ours.
+    if SameText(Copy(lEntry, 1, Length(PathVariable) + 1), PathVariable + '=') then
+      Continue;
+    ATarget.Add(lEntry);
+  end;
+  ATarget.Add(PathVariable + '=' + APath);
+end;
 
 function RunLazBuild(const ALazBuildPath, AFPCPath, AFPCBinDir: string;
   const AProjectPath, ATargetOS, ATargetCPU: string;
@@ -31,13 +52,13 @@ begin
   AStdErr := '';
   Result := False;
 
-  lNewPath := AFPCBinDir + ':' + GetEnvironmentVariable('PATH');
-  setenv('PATH', PChar(lNewPath), 1);
+  lNewPath := PrependToSearchPath(AFPCBinDir, GetEnvironmentVariable(PathVariable));
 
   lProc := TProcess.Create(nil);
   lOutStream := TMemoryStream.Create;
   lErrStream := TMemoryStream.Create;
   try
+    CopyEnvironmentWithPath(lProc.Environment, lNewPath);
     lProc.Executable := ALazBuildPath;
     lProc.Parameters.Add('-B');
     lProc.Parameters.Add('--compiler=' + AFPCPath);
